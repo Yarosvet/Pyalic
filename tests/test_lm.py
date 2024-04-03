@@ -3,7 +3,7 @@ import time
 import pytest
 from ..pyalic.lm import LicenseManager
 from ..pyalic.fingerprint import get_fingerprint
-from ..pyalic.types import LicenseResponse
+from ..pyalic.types import LicenseInfoResponse, SessionResponse
 from ..pyalic import exceptions
 from . import SERVER_PORT, rand_str, CERT_FILE
 from .server_http import HTTPRequest, CommonResponses
@@ -11,33 +11,33 @@ from .server_http import HTTPRequest, CommonResponses
 
 # pylint: disable=duplicate-code
 
-def test_check_key_valid(ssl_server):
+def test_key_info_valid(ssl_server):
     """Test checking valid key"""
     lm = LicenseManager(f"https://localhost:{SERVER_PORT}", CERT_FILE)
     lm.enable_auto_keepalive = False
     key = rand_str(16)
     ssl_server.set_response(
         HTTPRequest(method="POST",
-                    url="/check_license",
-                    request_data={"license_key": key, "fingerprint": get_fingerprint()}),
-        CommonResponses.valid_check_key_response(session_id=rand_str(16))
+                    url="/key_info",
+                    request_data={"license_key": key}),
+        CommonResponses.valid_key_info_response()
     )
-    assert isinstance(lm.check_key(key), LicenseResponse)
+    assert isinstance(lm.key_info(key), LicenseInfoResponse)
 
 
-def test_check_key_invalid(ssl_server):
+def test_key_info_invalid(ssl_server):
     """Test checking invalid key"""
     lm = LicenseManager(f"https://localhost:{SERVER_PORT}", CERT_FILE)
     lm.enable_auto_keepalive = False
     key = rand_str(16)
     ssl_server.set_response(
         HTTPRequest(method="POST",
-                    url="/check_license",
-                    request_data={"license_key": key, "fingerprint": get_fingerprint()}),
-        CommonResponses.invalid_check_key_response()
+                    url="/key_info",
+                    request_data={"license_key": key}),
+        CommonResponses.invalid_key_info_response()
     )
     with pytest.raises(exceptions.InvalidKeyException):
-        lm.check_key(key)
+        lm.key_info(key)
 
 
 def test_keepalive(ssl_server):
@@ -46,7 +46,7 @@ def test_keepalive(ssl_server):
     lm.session_id = rand_str(16)
     ssl_server.set_response(
         HTTPRequest(method="POST",
-                    url="/keepalive",
+                    url="/session/keepalive",
                     request_data={"session_id": lm.session_id}),
         CommonResponses.valid_keepalive_response()
     )
@@ -59,7 +59,7 @@ def test_keepalive_invalid(ssl_server):
     lm.session_id = rand_str(16)
     ssl_server.set_response(
         HTTPRequest(method="POST",
-                    url="/keepalive",
+                    url="/session/keepalive",
                     request_data={"session_id": lm.session_id}),
         CommonResponses.invalid_keepalive_response()
     )
@@ -72,8 +72,8 @@ def test_end_session(ssl_server):
     lm = LicenseManager(f"https://localhost:{SERVER_PORT}", CERT_FILE)
     lm.session_id = rand_str(16)
     ssl_server.set_response(
-        HTTPRequest(method="POST",
-                    url="/end_session",
+        HTTPRequest(method="DELETE",
+                    url="/session",
                     request_data={"session_id": lm.session_id}),
         CommonResponses.valid_end_session_response()
     )
@@ -85,8 +85,8 @@ def test_end_session_invalid(ssl_server):
     lm = LicenseManager(f"https://localhost:{SERVER_PORT}", CERT_FILE)
     lm.session_id = rand_str(16)
     ssl_server.set_response(
-        HTTPRequest(method="POST",
-                    url="/end_session",
+        HTTPRequest(method="DELETE",
+                    url="/session",
                     request_data={"session_id": lm.session_id}),
         CommonResponses.invalid_end_session_response()
     )
@@ -103,9 +103,9 @@ def test_auto_keepalive(ssl_server):
     session_id = rand_str(16)
     ssl_server.set_response(
         HTTPRequest(method="POST",
-                    url="/check_license",
+                    url="/session",
                     request_data={"license_key": key, "fingerprint": get_fingerprint()}),
-        CommonResponses.valid_check_key_response(session_id=session_id)
+        CommonResponses.valid_start_session_response(session_id=session_id)
     )
 
     keepalive_count = 0
@@ -116,12 +116,12 @@ def test_auto_keepalive(ssl_server):
 
     ssl_server.set_response(
         HTTPRequest(method="POST",
-                    url="/keepalive",
+                    url="/session/keepalive",
                     request_data={"session_id": session_id}),
         CommonResponses.valid_keepalive_response(),
         event=got_keepalive
     )
-    assert isinstance(lm.check_key(key), LicenseResponse)
+    assert isinstance(lm.start_session(key), SessionResponse)
     assert lm.auto_keepalive_sender.alive
     time.sleep(2)
     assert keepalive_count >= 4
@@ -147,17 +147,17 @@ def test_auto_keepalive_fail_event(ssl_server):
     session_id = rand_str(16)
     ssl_server.set_response(
         HTTPRequest(method="POST",
-                    url="/check_license",
+                    url="/session",
                     request_data={"license_key": key, "fingerprint": get_fingerprint()}),
-        CommonResponses.valid_check_key_response(session_id=session_id)
+        CommonResponses.valid_start_session_response(session_id=session_id)
     )
     ssl_server.set_response(
         HTTPRequest(method="POST",
-                    url="/keepalive",
+                    url="/session/keepalive",
                     request_data={"session_id": session_id}),
         CommonResponses.invalid_keepalive_response()
     )
-    assert isinstance(lm.check_key(key), LicenseResponse)
+    assert isinstance(lm.start_session(key), SessionResponse)
     time.sleep(lm.auto_keepalive_sender.interval)
     assert not lm.auto_keepalive_sender.alive
     assert bad_flag

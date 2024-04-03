@@ -24,10 +24,8 @@ def my_program():
 
 
 key = input("Enter your license key: ")
-check_response = lm.check_key(key)
-if check_response.success:
-    my_program()
-    lm.end_session()
-else:
-    print("Access denied:", check_response.error)
+info = lm.key_info(key)
+lm.start_session(key)
+my_program()
+lm.end_session()
 ```

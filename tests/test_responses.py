@@ -29,10 +29,8 @@ def test_valid_key():
                "session_id": "123",
                "additional_content_product": "test_product",
                "additional_content_signature": "test_signature"}
-    r = response.process_check_key(200, content)
+    r = response.process_start_session(200, content)
     assert r.session_id == "123"
-    assert r.additional_content_product == "test_product"
-    assert r.additional_content_signature == "test_signature"
     assert r.request_code == 200
     assert r.content == content
     assert r.error is None
@@ -42,13 +40,13 @@ def test_wrong_key_error():
     content = {"success": False,
                "error": "Invalid license key"}
     with pytest.raises(exceptions.InvalidKeyException):
-        response.process_check_key(400, content)
+        response.process_start_session(400, content)
 
 
 def test_check_key_wrong_request():
     content = _wrong_request_content
     with pytest.raises(exceptions.CheckLicenseException):
-        response.process_check_key(422, content)
+        response.process_start_session(422, content)
 
 
 def test_keepalive_success():

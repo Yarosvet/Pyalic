@@ -22,8 +22,17 @@ class OperationResponse:
 
 
 @dataclass
-class LicenseResponse(OperationResponse):
+class LicenseInfoResponse(OperationResponse):
     """Response from server for checking license"""
-    session_id: str = None
+    ends: int | None = None
+    activated: int | None = None
+    install_limit: int | None = None
+    sessions_limit: int | None = None
     additional_content_signature: str = ""
     additional_content_product: str = ""
+
+
+@dataclass
+class SessionResponse(OperationResponse):
+    """Response from server for session operations"""
+    session_id: str = None

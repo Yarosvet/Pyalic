@@ -8,7 +8,7 @@ from .. import response
 from ..exceptions import RequestFailed, KeepaliveException, PyalicException
 from .wrappers import AsyncSecureApiWrapper
 from ..fingerprint import get_fingerprint
-from ..types import LicenseResponse
+from ..types import LicenseInfoResponse, SessionResponse
 
 
 class AsyncAutoKeepaliveSender:
@@ -81,22 +81,37 @@ class AsyncLicenseManager:
         :param ssl_public_key: Path to SSL cert, or **None** to cancel SSL verifying
         """
         self.session_id = None
+        self.last_valid_key = None
+
         self.auto_keepalive_sender = AsyncAutoKeepaliveSender(async_lm=self)
         self.api = AsyncSecureApiWrapper(url=root_url, ssl_cert=ssl_public_key)
 
-    async def check_key(self, key: str) -> LicenseResponse:
+    async def key_info(self, key: str) -> LicenseInfoResponse:
         """
-        Check license key with specified Pyalic Server
+        Check license key with specified Pyalic Server and get information about it
         :param key: License key
         :return: `LicenseResponse`
         """
-        r = await self.api.check_key(key, get_fingerprint())
-        processed_resp = response.process_check_key(r.status_code, r.json())
-        # Start sending keepalive packets if needed
+        r = await self.api.key_info(key)
+        processed_resp = response.process_key_info(r.status_code, r.json())
+        # Save key
+        self.last_valid_key = key
+        return processed_resp
+
+    async def start_session(self, key: str) -> SessionResponse:
+        """
+        Start new license session with specified key
+        :param key: License key
+        :return: `response.SessionResponse`
+        """
+        fingerprint = get_fingerprint()
+        r = await self.api.start_session(key, fingerprint)
+        processed_resp = response.process_start_session(r.status_code, r.json())
+        # Save session id
+        self.session_id = processed_resp.session_id
+        # Start auto-keepalive sender
         if self.enable_auto_keepalive:
             self.auto_keepalive_sender.start()
-        # Save session ID
-        self.session_id = processed_resp.session_id
         return processed_resp
 
     async def keep_alive(self):

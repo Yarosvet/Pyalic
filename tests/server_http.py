@@ -103,12 +103,20 @@ class CommonResponses:
     """Common Pyalic server responses"""
 
     @staticmethod
-    def valid_check_key_response(session_id: str) -> HTTPResponse:
-        """Create correct check_key response"""
-        return HTTPResponse(response_data={"session_id": session_id,
-                                           "additional_content_signature": "",
+    def valid_key_info_response() -> HTTPResponse:
+        """Create correct key_info response"""
+        return HTTPResponse(response_data={"additional_content_signature": "",
                                            "additional_content_product": "",
-                                           "success": True},
+                                           "ends": None,
+                                           "activated": None,
+                                           "install_limit": None,
+                                           "sessions_limit": None},
+                            response_code=200)
+
+    @staticmethod
+    def valid_start_session_response(session_id: str) -> HTTPResponse:
+        """Create correct session_start response"""
+        return HTTPResponse(response_data={"session_id": session_id},
                             response_code=200)
 
     @staticmethod
@@ -124,9 +132,14 @@ class CommonResponses:
                             response_code=200)
 
     @staticmethod
-    def invalid_check_key_response() -> HTTPResponse:
-        """Create invalid check_key response"""
-        return HTTPResponse(response_data={"error": "Invalid license key", "success": False}, response_code=403)
+    def invalid_key_info_response() -> HTTPResponse:
+        """Create invalid key_info response"""
+        return HTTPResponse(response_data={"detail": "Invalid license key"}, response_code=400)
+
+    @staticmethod
+    def invalid_start_session_response() -> HTTPResponse:
+        """Create invalid start_session response"""
+        return HTTPResponse(response_data={"detail": "Invalid license key"}, response_code=400)
 
     @staticmethod
     def invalid_keepalive_response() -> HTTPResponse:

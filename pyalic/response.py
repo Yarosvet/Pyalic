@@ -1,16 +1,31 @@
 """Responses environment and managing responses"""
 from . import exceptions
-from .types import LicenseResponse, OperationResponse
+from .types import LicenseInfoResponse, OperationResponse, SessionResponse
 
 
-def process_check_key(status_code: int, content: dict) -> LicenseResponse:
+def process_key_info(status_code: int, content: dict) -> LicenseInfoResponse:
     """Process response for checking key"""
     if status_code == 200:
-        return LicenseResponse(request_code=status_code,
+        return LicenseInfoResponse(request_code=status_code,
+                                   content=content,
+                                   ends=content['ends'],
+                                   activated=content['activated'],
+                                   install_limit=content['install_limit'],
+                                   sessions_limit=content['sessions_limit'],
+                                   additional_content_signature=content['additional_content_signature'],
+                                   additional_content_product=content['additional_content_product'])
+    error = content.get('error', None) or content.get('detail', None) or content  # If no error found, set it to content
+    if error == exceptions.InvalidKeyException.message:
+        raise exceptions.InvalidKeyException(response=OperationResponse(status_code, content))
+    raise exceptions.CheckLicenseException(error, response=OperationResponse(status_code, content))
+
+
+def process_start_session(status_code: int, content: dict) -> SessionResponse:
+    """Process response for checking key"""
+    if status_code == 200:
+        return SessionResponse(request_code=status_code,
                                content=content,
-                               session_id=content['session_id'],
-                               additional_content_product=content['additional_content_product'],
-                               additional_content_signature=content['additional_content_signature'])
+                               session_id=content['session_id'])
     error = content.get('error', None) or content.get('detail', None) or content  # If no error found, set it to content
     if error == exceptions.InvalidKeyException.message:
         raise exceptions.InvalidKeyException(response=OperationResponse(status_code, content))
